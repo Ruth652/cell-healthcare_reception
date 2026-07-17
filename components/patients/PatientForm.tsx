@@ -1,205 +1,369 @@
 "use client";
 
-import { useState } from "react";
-import { toEthiopian, toGregorian } from "ethiopian-date";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useRouter } from "next/navigation";
 import Select from "react-select";
 import { countries } from "@/app/data/countries";
-import { addPatient } from "@/lib/patient-store";
-import { useRouter } from "next/navigation";
 
-export default function PatientForm() {
-  const [patientType, setPatientType] = useState("local");
+const TREATMENTS = [
+  "IVF / Assisted Reproduction",
+  "Intrauterine Insemination (IUI)",
+  "Egg Freezing / Cryopreservation",
+  "Surrogacy Support",
+  "Oncology / Cancer Treatment",
+  "Cardiac Surgery / Cardiology",
+  "Orthopedic Surgery",
+  "Neurosurgery / Neurology",
+  "Cosmetic & Plastic Surgery",
+  "Eye Surgery (LASIK / Cataract)",
+  "Dental & Maxillofacial",
+  "General Surgery",
+  "Stem Cell Therapy",
+  "Laparoscopic Surgery",
+  "Endoscopy / Gastroenterology",
+  "Fertility Preservation",
+  "Gynaecological Surgery",
+  "Urology",
+  "Health Checkup Package",
+  "Rehabilitation",
+  "Other",
+] as const;
 
-  const [dateType, setDateType] = useState<"gregorian" | "ethiopian">(
-    "gregorian"
-  );
+const BLOOD_TYPES = [
+  "A+",
+  "A-",
+  "B+",
+  "B-",
+  "AB+",
+  "AB-",
+  "O+",
+  "O-",
+  "Unknown",
+] as const;
+const PAY_STATUS = [
+  "Pending",
+  "Partially Paid",
+  "Fully Paid",
+  "Insurance Covered",
+  "Complimentary",
+] as const;
+const REFERRALS = [
+  "Self-referred",
+  "Online / Website",
+  "Embassy Referral",
+  "Hospital Referral",
+  "Travel Agent",
+  "Previous Patient",
+  "NGO / Aid Organization",
+  "Other",
+] as const;
+const GENDERS = ["Female", "Male", "Other", "Prefer not to say"] as const;
+const CURRENCIES = ["ETB", "USD", "EUR", "GBP", "AED", "SAR", "Other"] as const;
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    phone: "",
-    gender: "Female",
-    dob: "",
-    email: "",
-    nationality: "",
-    country: "",
-    address: "",
-    bloodGroup: "Unknown",
-    emergencyContact: "",
-    medicalNotes: "",
-    treatment: "IVF / Assisted Reproduction",
-    referral: "Self-referred",
-    paymentStatus: "Pending",
-    currency: "ETB",
-  });
+const patientFormSchema = z
+  .object({
+    pt: z.enum(["local", "international"]),
+    name: z.string().default(""),
+    gender: z.string().default("Female"),
+    dob: z.string().default(""),
+    bloodType: z.string().default("Unknown"),
 
-  const [errors, setErrors] = useState<any>({});
-  const [customCountry, setCustomCountry] = useState("");
-  const router = useRouter();
+    nationality: z.string().default(""),
+    customNationality: z.string().default(""),
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >
-  ) => {
-    const { name, value } = e.target;
+    phone: z.string().min(1, "Phone number is required"),
+    phone2: z.string().default(""),
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    email: z
+      .string()
+      .or(z.literal(""))
+      .transform((v) => (v === "" ? undefined : v))
+      .pipe(z.string().email("Enter a valid email address").optional()),
 
-    // remove error when user starts fixing input
-    setErrors((prev: any) => ({
-      ...prev,
-      [name]: "",
-    }));
-  };
+    language: z.string().default(""),
+    address: z.string().default(""),
+    ecName: z.string().default(""),
+    ecPhone: z.string().default(""),
 
-  const validateForm = () => {
-    let newErrors: any = {};
+    passport: z.string().default(""),
+    country: z.string().default(""),
+    customCountry: z.string().default(""),
+    visa: z.string().default(""),
+    arrivalDate: z.string().default(""),
+    departureDate: z.string().default(""),
+    hotel: z.string().default(""),
+    referrer: z.string().default(""),
+    interpreter: z.string().default("No"),
 
-    // Full name
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    }
+    treat: z.string().default(""),
+    treatPlan: z.string().default(""),
+    refSrc: z.string().default("Self-referred"),
+    regDate: z.string().default(() => new Date().toISOString().split("T")[0]),
 
-    // Phone
-    const ethiopianPhone = /^(09\d{8}|\+2519\d{8})$/;
-    const internationalPhone = /^\+[1-9]\d{7,14}$/;
+    conditions: z.string().default(""),
+    surgeries: z.string().default(""),
+    medications: z.string().default(""),
+    allergies: z.string().default(""),
+    familyHx: z.string().default(""),
+    obsHx: z.string().default(""),
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
-    } else if (patientType == "local" && !ethiopianPhone.test(formData.phone)) {
-      newErrors.phone =
-        "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)";
-    } else if (
-      patientType == "international" &&
-      !internationalPhone.test(formData.phone)
-    ) {
-      newErrors.phone =
-        "Enter a valid international phone number starting with + and country code";
-    }
+    labRem: z.string().default(""),
+    labDate: z.string().default(""),
+    labPend: z.string().default(""),
 
-    if (
-      formData.emergencyContact.trim() &&
-      !ethiopianPhone.test(formData.emergencyContact)
-    ) {
-      newErrors.emergencyContact =
-        "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)";
-    }
+    fu1: z.object({
+      date: z.string().default(""),
+      note: z.string().default(""),
+    }),
+    fu2: z.object({
+      date: z.string().default(""),
+      note: z.string().default(""),
+    }),
+    fu3: z.object({
+      date: z.string().default(""),
+      note: z.string().default(""),
+    }),
+    fu4: z.object({
+      date: z.string().default(""),
+      note: z.string().default(""),
+    }),
 
-    // Email
-    if (formData.email) {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    payStatus: z.string().default("Pending"),
+    currency: z.string().default("ETB"),
+    totalAmt: z.string().default(""),
+    paidAmt: z.string().default(""),
+    payMethod: z.string().default(""),
+    insurance: z.string().default(""),
+    payRem: z.string().default(""),
+  })
+  .superRefine((data, ctx) => {
+    const ethiopianPhoneRegex = /^(09\d{8}|\+2519\d{8})$/;
+    // Generic international phone regex: Allows optional +, country code, and 1 to 14 standard digits
+    const internationalPhoneRegex = /^\+?[1-9]\d{1,14}$/;
 
-      if (!emailPattern.test(formData.email)) {
-        newErrors.email = "Enter a valid email address";
+    // 1. Primary Phone Validation
+    const cleanPhone = data.phone.replace(/[\s\-]/g, "");
+    if (data.pt === "local") {
+      if (!ethiopianPhoneRegex.test(cleanPhone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["phone"],
+          message:
+            "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)",
+        });
+      }
+    } else {
+      if (!internationalPhoneRegex.test(cleanPhone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["phone"],
+          message:
+            "Enter a valid international phone number (e.g., +14155552671)",
+        });
       }
     }
 
-    // Date
-    if (formData.dob) {
-      if (dateType === "ethiopian") {
-        const parts = formData.dob.split("-");
-
-        if (parts.length !== 3) {
-          newErrors.dob = "Enter Ethiopian date as YYYY-MM-DD";
+    // 2. Emergency Phone Validation (Optional, validations apply if field contains content)
+    if (data.ecPhone && data.ecPhone.trim() !== "") {
+      const cleanEcPhone = data.ecPhone.replace(/[\s\-]/g, "");
+      if (data.pt === "local") {
+        if (!ethiopianPhoneRegex.test(cleanEcPhone)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["ecPhone"],
+            message:
+              "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)",
+          });
         }
       } else {
-        const selectedDate = new Date(formData.dob);
-
-        if (selectedDate > new Date()) {
-          newErrors.dob = "Date of birth cannot be in the future";
+        if (!internationalPhoneRegex.test(cleanEcPhone)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["ecPhone"],
+            message:
+              "Enter a valid international phone number (e.g., +14155552671)",
+          });
         }
       }
     }
+  });
 
-    setErrors(newErrors);
+type PatientFormValues = z.infer<typeof patientFormSchema>;
 
-    return Object.keys(newErrors).length === 0;
+interface PatientFormProps {
+  initialData?: Partial<PatientFormValues>;
+  id?: string;
+}
+
+export default function PatientForm({ initialData, id }: PatientFormProps) {
+  const router = useRouter();
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<PatientFormValues>({
+    resolver: zodResolver(patientFormSchema),
+    defaultValues: {
+      pt: "local",
+      gender: "Female",
+      bloodType: "Unknown",
+      refSrc: "Self-referred",
+      interpreter: "No",
+      payStatus: "Pending",
+      currency: "ETB",
+      nationality: "Ethiopian",
+      regDate: new Date().toISOString().split("T")[0],
+      ...initialData,
+    },
+  });
+
+  const selectedPatientType = watch("pt");
+  const selectedNationality = watch("nationality");
+  const selectedCountry = watch("country");
+
+  const selectOptions = [...countries, { value: "OTHER", label: "Other" }];
+
+  const handlePatientTypeChange = (type: "local" | "international") => {
+    setValue("pt", type);
+    if (type === "local") {
+      setValue("nationality", "Ethiopian");
+      setValue("customNationality", "");
+    } else {
+      setValue("nationality", "");
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    let finalData = {
-      ...formData,
-      patientType,
+  const onSubmit = (data: PatientFormValues) => {
+    const finalSubmission = {
+      ...data,
+      nationality:
+        data.nationality === "Other"
+          ? data.customNationality
+          : data.nationality,
+      country: data.country === "Other" ? data.customCountry : data.country,
     };
 
-    // Convert Ethiopian date to Gregorian before saving
-    if (dateType === "ethiopian" && formData.dob) {
-      const [year, month, day] = formData.dob.split("-").map(Number);
-
-      const gregorian = toGregorian(year, month, day);
-
-      finalData.dob = `${gregorian.year}-${String(gregorian.month).padStart(
-        2,
-        "0"
-      )}-${String(gregorian.day).padStart(2, "0")}`;
-    }
-
-    addPatient(finalData);
-
-    console.log("Patient Data:", finalData);
-    alert("Patient registered successfully");
+    console.log("Submitting fully validated configuration:", finalSubmission);
+    alert(
+      id
+        ? "Patient record updated successfully!"
+        : "Patient registered successfully!"
+    );
     router.push("/dashboard");
   };
 
-  return (
-    <form className="card" onSubmit={handleSubmit}>
-      <div className="card-title">➕ Register New Patient</div>
+  // Shared conditional configuration for inputs
+  const phonePlaceholder =
+    selectedPatientType === "local"
+      ? "09xxxxxxxx or +2519xxxxxxxx"
+      : "+14155552671";
 
-      {/* Patient Type */}
+  return (
+    <form className="card" onSubmit={handleSubmit(onSubmit)}>
+      <div className="card-title">
+        {id ? "✏️ Edit Patient Record" : "➕ Register New Patient"}
+      </div>
+
+      {/* Patient Type Selectors */}
       <div className="form-section">
         <div className="fst">Patient Type</div>
-
         <div className="type-sel">
-          <button
-            type="button"
-            className={
-              patientType === "local" ? "type-btn sel-local" : "type-btn"
-            }
-            onClick={() => setPatientType("local")}
+          <div
+            className={`type-btn ${
+              selectedPatientType === "local" ? "sel-local" : ""
+            }`}
+            onClick={() => handlePatientTypeChange("local")}
+            style={{ cursor: "pointer" }}
           >
             🏠 Local Patient
-          </button>
-
-          <button
-            type="button"
-            className={
-              patientType === "international" ? "type-btn sel-intl" : "type-btn"
-            }
-            onClick={() => setPatientType("international")}
+            <br />
+            <span style={{ fontSize: "9px", opacity: 0.7, fontWeight: 400 }}>
+              Ethiopian Resident
+            </span>
+          </div>
+          <div
+            className={`type-btn ${
+              selectedPatientType === "international" ? "sel-intl" : ""
+            }`}
+            onClick={() => handlePatientTypeChange("international")}
+            style={{ cursor: "pointer" }}
           >
-            ✈ International Patient
-          </button>
+            ✈️ International Patient
+            <br />
+            <span style={{ fontSize: "9px", opacity: 0.7, fontWeight: 400 }}>
+              Foreign National / Medical Tourist
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Personal Information */}
       <div className="form-section">
         <div className="fst">Personal Information</div>
-
         <div className="form-grid">
-          <div className="fg">
+          <div className="fg full">
             <label>
               Full Name <span className="req">*</span>
             </label>
+            <input {...register("name")} placeholder="Full legal name" />
+          </div>
 
-            <input
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              placeholder="Patient full name"
+          <div className="fg">
+            <label>Gender</label>
+            <select {...register("gender")}>
+              {GENDERS.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="fg">
+            <label>Date of Birth</label>
+            <input type="date" {...register("dob")} />
+          </div>
+
+          <div className="fg">
+            <label>Blood Type</label>
+            <select {...register("bloodType")}>
+              {BLOOD_TYPES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dynamic Nationality Select */}
+          <div className="fg">
+            <label>Nationality</label>
+            <Select
+              className="react-select-container"
+              classNamePrefix="react-select"
+              instanceId="nationality-select"
+              options={selectOptions}
+              placeholder="Search nationality..."
+              isSearchable
+              value={
+                selectOptions.find((c) => c.label === selectedNationality) ||
+                null
+              }
+              onChange={(selected: any) => {
+                setValue("nationality", selected?.label || "");
+              }}
             />
-
-            {errors.fullName && (
-              <small className="error">{errors.fullName}</small>
+            {selectedNationality === "Other" && (
+              <input
+                style={{ marginTop: "6px" }}
+                placeholder="Enter nationality name"
+                {...register("customNationality")}
+              />
             )}
           </div>
 
@@ -207,324 +371,401 @@ export default function PatientForm() {
             <label>
               Phone Number <span className="req">*</span>
             </label>
-
             <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="+251..."
+              type="tel"
+              {...register("phone")}
+              placeholder={phonePlaceholder}
             />
-
-            {errors.phone && <small className="error">{errors.phone}</small>}
+            {errors.phone && (
+              <span
+                style={{
+                  color: "var(--red)",
+                  fontSize: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                {errors.phone.message}
+              </span>
+            )}
           </div>
 
           <div className="fg">
-            <label>Gender</label>
-
-            <select
-              name="gender"
-              value={formData.gender}
-              onChange={handleChange}
-            >
-              <option>Female</option>
-
-              <option>Male</option>
-
-              <option>Other</option>
-
-              <option>Prefer not to say</option>
-            </select>
+            <label>Alternate Phone</label>
+            <input
+              type="tel"
+              {...register("ecPhone")}
+              placeholder={phonePlaceholder}
+            />
+            {errors.ecPhone && (
+              <span
+                style={{
+                  color: "var(--red)",
+                  fontSize: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                {errors.ecPhone.message}
+              </span>
+            )}
           </div>
 
           <div className="fg">
-            <label>Date of Birth</label>
-
-            <select
-              value={dateType}
-              onChange={(e) => setDateType(e.target.value as any)}
-            >
-              <option value="gregorian">Gregorian</option>
-
-              <option value="ethiopian">Ethiopian</option>
-            </select>
-
+            <label>Email Address</label>
             <input
-              name="dob"
-              value={formData.dob}
-              onChange={handleChange}
-              placeholder={dateType === "ethiopian" ? "2018-01-01" : ""}
-              type={dateType === "gregorian" ? "date" : "text"}
+              type="email"
+              {...register("email")}
+              placeholder="example@domain.com"
             />
+            {errors.email && (
+              <span
+                style={{
+                  color: "var(--red)",
+                  fontSize: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                {errors.email.message}
+              </span>
+            )}
+          </div>
 
-            {errors.dob && <small className="error">{errors.dob}</small>}
+          <div className="fg">
+            <label>Preferred Language</label>
+            <input
+              {...register("language")}
+              placeholder="e.g. Amharic, English"
+            />
+          </div>
+
+          <div className="fg full">
+            <label>Home Address / Hotel</label>
+            <input
+              {...register("address")}
+              placeholder="City, Country / Hotel name"
+            />
+          </div>
+
+          <div className="fg">
+            <label>Emergency Contact Name</label>
+            <input {...register("ecName")} placeholder="Full name" />
+          </div>
+
+          <div className="fg">
+            <label>Emergency Contact Phone</label>
+            <input
+              type="tel"
+              {...register("ecPhone")}
+              placeholder={phonePlaceholder}
+            />
+            {errors.ecPhone && (
+              <span
+                style={{
+                  color: "var(--red)",
+                  fontSize: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                {errors.ecPhone.message}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Contact Information */}
-      <div className="form-section">
-        <div className="fst">Contact Information</div>
-
+      {/* Travel & Visa Information */}
+      <div
+        className="form-section"
+        style={{
+          display: selectedPatientType === "international" ? "" : "none",
+        }}
+      >
+        <div className="fst">✈️ Travel & Visa Information</div>
         <div className="form-grid">
           <div className="fg">
-            <label>Email</label>
-
-            <input
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="email@example.com"
-            />
-
-            {errors.email && <small className="error">{errors.email}</small>}
+            <label>Passport Number</label>
+            <input {...register("passport")} placeholder="Passport number" />
           </div>
 
+          {/* Dynamic Country Select */}
           <div className="fg">
-            <label>Nationality</label>
-
-            <input
-              name="nationality"
-              value={formData.nationality}
-              onChange={handleChange}
-              placeholder="Nationality"
-            />
-          </div>
-
-          {/* <div className="fg">
-            <label>Country</label>
-
-            <input
-              name="country"
-              value={formData.country}
-              onChange={handleChange}
-              placeholder="Country"
-            />
-          </div> */}
-          <div className="fg">
-            <label>Country</label>
-
+            <label>Country of Origin</label>
             <Select
               className="react-select-container"
-              classNamePrefix={"react-select"}
-              instanceId={"country-select"}
-              options={countries}
+              classNamePrefix="react-select"
+              instanceId="country-select"
+              options={selectOptions}
               placeholder="Search country..."
               isSearchable
-              value={countries.find((c) => c.label === formData.country)}
+              value={
+                selectOptions.find((c) => c.label === selectedCountry) || null
+              }
               onChange={(selected: any) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  country: selected?.label || "",
-                }));
+                setValue("country", selected?.label || "");
               }}
             />
-
-            {formData.country === "Other" && (
+            {selectedCountry === "Other" && (
               <input
+                style={{ marginTop: "6px" }}
                 placeholder="Enter country name"
-                value={customCountry}
-                onChange={(e) => setCustomCountry(e.target.value)}
+                {...register("customCountry")}
               />
             )}
           </div>
 
           <div className="fg">
-            <label>Address</label>
-
-            <input
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Address"
-            />
+            <label>Visa Type / Status</label>
+            <input {...register("visa")} placeholder="e.g. Medical Visa" />
+          </div>
+          <div className="fg">
+            <label>Arrival Date in Ethiopia</label>
+            <input type="date" {...register("arrivalDate")} />
+          </div>
+          <div className="fg">
+            <label>Planned Departure Date</label>
+            <input type="date" {...register("departureDate")} />
+          </div>
+          <div className="fg">
+            <label>Accommodation / Hotel</label>
+            <input {...register("hotel")} placeholder="Hotel name" />
+          </div>
+          <div className="fg">
+            <label>Referring Hospital / Agent</label>
+            <input {...register("referrer")} placeholder="Institution name" />
+          </div>
+          <div className="fg">
+            <label>Interpreter Required?</label>
+            <select {...register("interpreter")}>
+              <option value="No">No</option>
+              <option value="Yes">Yes</option>
+              <option value="Arranged">Yes — Already Arranged</option>
+            </select>
           </div>
         </div>
       </div>
 
-      {/* Medical Information */}
+      {/* Type of Treatment */}
       <div className="form-section">
-        <div className="fst">Medical Information</div>
-
+        <div className="fst">🏥 Type of Treatment</div>
         <div className="form-grid">
-          <div className="fg">
-            <label>Blood Group</label>
-
-            <select
-              name="bloodGroup"
-              value={formData.bloodGroup}
-              onChange={handleChange}
-            >
-              <option>Unknown</option>
-
-              <option>A+</option>
-
-              <option>A-</option>
-
-              <option>B+</option>
-
-              <option>B-</option>
-
-              <option>AB+</option>
-
-              <option>AB-</option>
-
-              <option>O+</option>
-
-              <option>O-</option>
-            </select>
-          </div>
-
-          <div className="fg">
-            <label>Emergency Contact</label>
-
-            <input
-              name="emergencyContact"
-              value={formData.emergencyContact}
-              onChange={handleChange}
-              placeholder="Emergency phone"
-            />
-            {errors.emergencyContact && (
-              <small className="error">{errors.emergencyContact}</small>
-            )}
-          </div>
-
           <div className="fg full">
-            <label>Medical Notes</label>
-
+            <label>
+              Treatment Type <span className="req">*</span>
+            </label>
+            <select {...register("treat")}>
+              <option value="">Select treatment...</option>
+              {TREATMENTS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="fg full">
+            <label>Treatment Plan / Package Description</label>
             <textarea
-              name="medicalNotes"
-              value={formData.medicalNotes}
-              onChange={handleChange}
-              placeholder="Medical history, allergies, notes..."
+              {...register("treatPlan")}
+              placeholder="Describe the treatment plan, procedures..."
+            />
+          </div>
+          <div className="fg">
+            <label>Source of Referral</label>
+            <select {...register("refSrc")}>
+              {REFERRALS.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="fg">
+            <label>Registration Date</label>
+            <input type="date" {...register("regDate")} />
+          </div>
+        </div>
+      </div>
+
+      {/* Past Medical History */}
+      <div className="form-section">
+        <div className="fst">📋 Past Medical History</div>
+        <div className="form-grid">
+          <div className="fg full">
+            <label>Previous Medical Conditions / Chronic Illnesses</label>
+            <textarea
+              {...register("conditions")}
+              placeholder="e.g. Hypertension, Diabetes, PCOS..."
+            />
+          </div>
+          <div className="fg full">
+            <label>Previous Surgeries / Procedures</label>
+            <textarea
+              {...register("surgeries")}
+              placeholder="e.g. Appendectomy 2018..."
+            />
+          </div>
+          <div className="fg full">
+            <label>Current Medications</label>
+            <textarea
+              {...register("medications")}
+              placeholder="List current medications..."
+            />
+          </div>
+          <div className="fg full">
+            <label>Known Allergies</label>
+            <textarea
+              {...register("allergies")}
+              placeholder="List all known allergies..."
+            />
+          </div>
+          <div className="fg full">
+            <label>Family Medical History</label>
+            <textarea
+              {...register("familyHx")}
+              placeholder="Relevant family history..."
+            />
+          </div>
+          <div className="fg full">
+            <label>Obstetric / Reproductive History (if applicable)</label>
+            <textarea
+              {...register("obsHx")}
+              placeholder="e.g. G2P1A1, previous IVF attempts..."
             />
           </div>
         </div>
       </div>
 
-      {/* Treatment Information */}
+      {/* Lab Investigations */}
       <div className="form-section">
-        <div className="fst">Treatment Information</div>
-
+        <div className="fst">🔬 Lab Investigations</div>
         <div className="form-grid">
-          <div className="fg">
-            <label>Treatment</label>
-
-            <select
-              name="treatment"
-              value={formData.treatment}
-              onChange={handleChange}
-            >
-              <option>IVF / Assisted Reproduction</option>
-
-              <option>Intrauterine Insemination (IUI)</option>
-
-              <option>Egg Freezing / Cryopreservation</option>
-
-              <option>Cardiac Surgery / Cardiology</option>
-
-              <option>General Surgery</option>
-
-              <option>Other</option>
-            </select>
+          <div className="fg full">
+            <label>Lab Investigation Results & Remarks</label>
+            <textarea
+              {...register("labRem")}
+              style={{ minHeight: "70px" }}
+              placeholder="e.g. AMH: 1.2 ng/mL..."
+            />
           </div>
-
           <div className="fg">
-            <label>Referral Source</label>
-
-            <select
-              name="referral"
-              value={formData.referral}
-              onChange={handleChange}
-            >
-              <option>Self-referred</option>
-
-              <option>Online / Website</option>
-
-              <option>Hospital Referral</option>
-
-              <option>Embassy Referral</option>
-
-              <option>Other</option>
-            </select>
+            <label>Date of Last Lab Tests</label>
+            <input type="date" {...register("labDate")} />
+          </div>
+          <div className="fg">
+            <label>Pending Investigations</label>
+            <input
+              {...register("labPend")}
+              placeholder="e.g. Awaiting MRI..."
+            />
           </div>
         </div>
       </div>
 
-      {/* Payment */}
+      {/* Follow-up Schedule */}
       <div className="form-section">
-        <div className="fst">Payment Information</div>
+        <div className="fst">📅 Follow-up Schedule (4 Visits)</div>
+        <div className="fu-grid">
+          {[1, 2, 3, 4].map((i) => (
+            <div className="fu-item" key={i}>
+              <div
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 800,
+                  color: "var(--brand)",
+                  marginBottom: "6px",
+                }}
+              >
+                Follow-up {i}
+              </div>
+              <div className="fg" style={{ marginBottom: "5px" }}>
+                <label>Date</label>
+                <input type="date" {...register(`fu${i}.date` as any)} />
+              </div>
+              <div className="fg">
+                <label>Remarks / Purpose</label>
+                <input
+                  {...register(`fu${i}.note` as any)}
+                  placeholder="e.g. Post-transfer check..."
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
+      {/* Payment Information */}
+      <div className="form-section">
+        <div className="fst">💳 Payment Information</div>
         <div className="form-grid">
           <div className="fg">
             <label>Payment Status</label>
-
-            <select
-              name="paymentStatus"
-              value={formData.paymentStatus}
-              onChange={handleChange}
-            >
-              <option>Pending</option>
-
-              <option>Partially Paid</option>
-
-              <option>Fully Paid</option>
-
-              <option>Insurance Covered</option>
-
-              <option>Complimentary</option>
+            <select {...register("payStatus")}>
+              {PAY_STATUS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           </div>
-
           <div className="fg">
             <label>Currency</label>
-
-            <select
-              name="currency"
-              value={formData.currency}
-              onChange={handleChange}
-            >
-              <option>ETB</option>
-
-              <option>USD</option>
-
-              <option>EUR</option>
-
-              <option>GBP</option>
+            <select {...register("currency")}>
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
+          </div>
+          <div className="fg">
+            <label>Total Amount</label>
+            <input
+              type="number"
+              step="0.01"
+              {...register("totalAmt")}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="fg">
+            <label>Amount Paid</label>
+            <input
+              type="number"
+              step="0.01"
+              {...register("paidAmt")}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="fg">
+            <label>Payment Method</label>
+            <input
+              {...register("payMethod")}
+              placeholder="e.g. Cash, Bank Transfer..."
+            />
+          </div>
+          <div className="fg">
+            <label>Insurance Provider</label>
+            <input
+              {...register("insurance")}
+              placeholder="Insurance company (if any)"
+            />
+          </div>
+          <div className="fg full">
+            <label>Payment Remarks / Notes</label>
+            <textarea
+              {...register("payRem")}
+              placeholder="Payment notes, receipt numbers..."
+            />
           </div>
         </div>
       </div>
 
-      {/* Actions */}
+      {/* Action Footers */}
       <div className="action-bar">
         <button type="submit" className="btn btn-primary">
-          Save Patient
+          💾 {id ? "Update Record" : "Register Patient"}
         </button>
-
         <button
           type="button"
           className="btn btn-secondary"
-          onClick={() => {
-            setFormData({
-              fullName: "",
-              phone: "",
-              gender: "Female",
-              dob: "",
-              email: "",
-              nationality: "",
-              country: "",
-              address: "",
-              bloodGroup: "Unknown",
-              emergencyContact: "",
-              medicalNotes: "",
-              treatment: "IVF / Assisted Reproduction",
-              referral: "Self-referred",
-              paymentStatus: "Pending",
-              currency: "ETB",
-            });
-
-            setErrors({});
-          }}
+          onClick={() => router.back()}
         >
           Cancel
         </button>

@@ -51,6 +51,5 @@ export const countries = [
     { value: "VN", label: "Vietnam" },
     { value: "ZM", label: "Zambia" },
     { value: "ZW", label: "Zimbabwe" },
-  
-    { value: "OTHER", label: "Other" }
+
   ];
