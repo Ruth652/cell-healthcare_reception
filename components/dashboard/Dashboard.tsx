@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import StatsCards from "./StatsCards";
 import QuickActions from "./QuickActions";
 import RecentPatients from "./RecentPatients";
+import DashboardGrid from "../DashboardGrid";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -64,7 +65,7 @@ export default function Dashboard() {
       <StatsCards />
 
       <QuickActions />
-
+      <DashboardGrid />
       <RecentPatients />
     </>
   );

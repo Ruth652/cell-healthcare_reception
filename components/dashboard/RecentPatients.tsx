@@ -1,5 +1,6 @@
 import { patients } from "@/lib/mock-data";
 import { initials, fmtDate, calcAge } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export default function RecentPatients() {
   const allPatients = [...patients]
@@ -12,12 +13,19 @@ export default function RecentPatients() {
   if (!allPatients.length) {
     return null;
   }
+  const router = useRouter();
 
   return (
     <div className="card">
       <div className="card-title">
         🕐 Recently Registered
-        <span className="ctr">All patients →</span>
+        <span
+          className="ctr"
+          onClick={() => router.push("/patients")}
+          style={{ cursor: "pointer" }}
+        >
+          All patients →
+        </span>
       </div>
 
       {allPatients.map((p) => (
@@ -46,8 +54,20 @@ export default function RecentPatients() {
                 <span className="badge b-treat">{p.treat.split("/")[0]}</span>
               )}
 
+              {/* Dynamic Payment Status Badge linked entirely to your CSS classes */}
               {p.payStatus && (
-                <span className="badge b-paid">{p.payStatus}</span>
+                <span
+                  className={`badge ${
+                    p.payStatus === "Fully Paid" ||
+                    p.payStatus === "Insurance Covered"
+                      ? "b-paid"
+                      : p.payStatus === "Partially Paid"
+                      ? "b-partial"
+                      : "b-pending"
+                  }`}
+                >
+                  {p.payStatus}
+                </span>
               )}
             </div>
 
