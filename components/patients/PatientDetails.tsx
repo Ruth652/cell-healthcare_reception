@@ -114,7 +114,6 @@ export default function PatientDetails({ id }: { id: string }) {
     );
   }
 
-  // Row helper mapping exactly to your old template's style structure
   const renderRow = (label: string, value: any, fullWidth = false) => (
     <div className="irow" style={fullWidth ? { gridColumn: "1 / -1" } : {}}>
       <div className="ilabel">{label}</div>

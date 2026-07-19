@@ -8,6 +8,7 @@ import Select from "react-select";
 import { countries } from "@/app/data/countries";
 import { savePatientRecord } from "@/lib/db-actions";
 import { supabase } from "@/lib/supabase";
+import { normalizePhone } from "@/lib/utils";
 
 const TREATMENTS = [
   "IVF / Assisted Reproduction",
@@ -237,8 +238,6 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     }
   };
 
-  // Inside your PatientForm component, update the onSubmit function:
-
   const onSubmit = async (data: PatientFormValues) => {
     const processedFormData = {
       ...data,
@@ -249,20 +248,31 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
       country: data.country === "Other" ? data.customCountry : data.country,
     };
 
-    // 1. Check if the phone number already exists in the database
-    const { data: existingPhone, error: phoneCheckError } = await supabase
-      .from("patients")
-      .select("id")
-      .eq("phone", data.phone)
-      .maybeSingle();
+    const normalizedInput = normalizePhone(data.phone.trim());
+
+    // 1. Check phone database records excluding the current item if editing
+    let query = supabase.from("patients").select("id, phone");
+    if (id) {
+      query = query.neq("id", id);
+    }
+
+    const { data: records, error: phoneCheckError } = await query;
 
     if (phoneCheckError) {
       alert(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
       return;
     }
 
-    if (existingPhone) {
-      alert("⚠️ This phone number is already registered to another patient.");
+    // Evaluate matching normalizations
+    const isDuplicate = records?.some((record) => {
+      if (!record.phone) return false;
+      return normalizePhone(record.phone) === normalizedInput;
+    });
+
+    if (isDuplicate) {
+      alert(
+        "⚠️ This phone number is already registered to another patient profile under an alternate format variant."
+      );
       return;
     }
 

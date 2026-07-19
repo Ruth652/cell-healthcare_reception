@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { savePatientRecord } from "@/lib/db-actions";
+import { normalizePhone } from "@/lib/utils";
 
 const TREATMENTS = [
   "IVF / Assisted Reproduction",
@@ -222,34 +223,43 @@ export default function EditPatientForm() {
     });
   };
 
-  // Inside your EditPatientForm component, update the handleSave function:
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.phone.trim()) {
+
+    const rawPhone = formData.phone.trim();
+    if (!formData.name.trim() || !rawPhone) {
       alert("⚠️ Patient name and phone number are required.");
       return;
     }
 
-    // 1. Cross-check if the phone number is taken by a DIFFERENT patient record
-    const { data: existingPhone, error: phoneCheckError } = await supabase
+    // Normalize the user's input digits to prepare for checking
+    const normalizedInput = normalizePhone(rawPhone);
+
+    // 1. Fetch phone numbers belonging to all OTHER patient profiles
+    const { data: records, error: phoneCheckError } = await supabase
       .from("patients")
-      .select("id")
-      .eq("phone", formData.phone.trim())
-      .neq("id", id) // Exclude the current patient record from the check
-      .maybeSingle();
+      .select("id, phone")
+      .neq("id", id); // Exclude the current record from validation checks[cite: 4]
 
     if (phoneCheckError) {
       alert(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
       return;
     }
 
-    if (existingPhone) {
-      alert("⚠️ This phone number is already in use by another patient.");
+    // 2. Validate using the normalization rules to catch matching variations (+251... vs 0...)
+    const isDuplicate = records?.some((record) => {
+      if (!record.phone) return false;
+      return normalizePhone(record.phone) === normalizedInput;
+    });
+
+    if (isDuplicate) {
+      alert(
+        "⚠️ This phone number is already in use by another patient profile under an alternate format structure."
+      );
       return;
     }
 
-    // 2. Proceed with updating if unique or unchanged
+    // 3. Proceed with saving the records if the fields are valid
     const { error } = await savePatientRecord(id, formData, followups);
 
     if (error) {
