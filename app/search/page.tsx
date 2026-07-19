@@ -1,33 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { patients } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { initials, fmtDate } from "@/lib/utils";
 
 export default function SearchPage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
-  const [results, setResults] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleSearch = () => {
-    if (!query.trim()) {
-      setHasSearched(false);
-      setResults([]);
-      return;
+  // Fetch all patients from Supabase on mount to store them in memory cache
+  useEffect(() => {
+    async function fetchPatientsCache() {
+      try {
+        const { data, error } = await supabase.from("patients").select("*");
+        if (error) {
+          console.error("Error loading patients cache:", error.message);
+        } else if (data) {
+          // Map DB snake_case structure to the layout's camelCase variables
+          const mapped = data.map((p) => ({
+            ...p,
+            regDate: p.reg_date,
+            payStatus: p.pay_status,
+          }));
+          setPatients(mapped);
+        }
+      } catch (err) {
+        console.error("Unexpected cache fetch breakdown:", err);
+      } finally {
+        setLoading(false);
+      }
     }
+    fetchPatientsCache();
+  }, []);
 
-    // This handles both Name or Phone scanning cleanly
-    const filtered = patients.filter(
-      (p) =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.phone.replace(/[\s\-]/g, "").includes(query.replace(/[\s\-]/g, ""))
+  // Compute live search results on every single keystroke directly from memory
+  const results = query.trim()
+    ? patients.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.phone.replace(/[\s\-]/g, "").includes(query.replace(/[\s\-]/g, ""))
+      )
+    : [];
+
+  const hasSearched = query.trim().length > 0;
+
+  // Render a clean skeleton dashboard card while fetching the initial cache database rows
+  if (loading) {
+    return (
+      <div
+        className="card"
+        style={{
+          width: "100%",
+          margin: 0,
+          opacity: 0.6,
+          animation: "pulse 1.5s infinite",
+        }}
+      >
+        <div
+          style={{
+            height: "24px",
+            width: "50%",
+            background: "var(--gray)",
+            marginBottom: "20px",
+            borderRadius: "4px",
+          }}
+        />
+        <div
+          style={{
+            height: "45px",
+            width: "100%",
+            background: "var(--gray)",
+            borderRadius: "8px",
+          }}
+        />
+        <style jsx global>{`
+          @keyframes pulse {
+            0% {
+              opacity: 0.4;
+            }
+            50% {
+              opacity: 0.8;
+            }
+            100% {
+              opacity: 0.4;
+            }
+          }
+        `}</style>
+      </div>
     );
-
-    setResults(filtered);
-    setHasSearched(true);
-  };
+  }
 
   return (
     <div
@@ -51,12 +115,11 @@ export default function SearchPage() {
         🔍 SEARCH PATIENT BY PHONE NUMBER OR NAME
       </div>
 
-      {/* Control Input Row with Action Button */}
+      {/* Control Input Area - Button removed since search runs instantly on key stroke */}
       <div
         style={{
           display: "flex",
-          gap: "10px",
-          alignItems: "center",
+          flexDirection: "column",
           marginBottom: "20px",
         }}
       >
@@ -64,13 +127,9 @@ export default function SearchPage() {
           type="text"
           placeholder="Enter phone number (e.g. +251911234567) or name..."
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            if (!e.target.value.trim()) setHasSearched(false);
-          }}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          onChange={(e) => setQuery(e.target.value)}
           style={{
-            flex: 1,
+            width: "100%",
             padding: "12px",
             borderRadius: "8px",
             border: "1px solid #ccd7e0",
@@ -78,22 +137,6 @@ export default function SearchPage() {
             outline: "none",
           }}
         />
-        <button
-          onClick={handleSearch}
-          className="btn btn-primary"
-          style={{
-            padding: "12px 24px",
-            borderRadius: "8px",
-            border: "none",
-            backgroundColor: "#45a29e", // Match your theme's teal tone
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "14px",
-          }}
-        >
-          Search
-        </button>
       </div>
 
       {/* Results Workspace Area */}
@@ -249,7 +292,7 @@ export default function SearchPage() {
               ))}
             </div>
           ) : (
-            /* Explicit Empty Screen State matching Screenshot 2 */
+            /* Explicit Empty Screen State */
             <div
               style={{
                 display: "flex",

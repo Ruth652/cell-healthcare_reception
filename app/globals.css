@@ -221,3 +221,13 @@ textarea{resize:vertical;min-height:58px}
 .react-select__clear-indicator {
   color: var(--text3);
 }
+
+.skeleton-text {
+  opacity: 0.4;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}

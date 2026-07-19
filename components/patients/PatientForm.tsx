@@ -6,6 +6,8 @@ import * as z from "zod";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
 import { countries } from "@/app/data/countries";
+import { savePatientRecord } from "@/lib/db-actions";
+import { supabase } from "@/lib/supabase";
 
 const TREATMENTS = [
   "IVF / Assisted Reproduction",
@@ -140,10 +142,8 @@ const patientFormSchema = z
   })
   .superRefine((data, ctx) => {
     const ethiopianPhoneRegex = /^(09\d{8}|\+2519\d{8})$/;
-    // Generic international phone regex: Allows optional +, country code, and 1 to 14 standard digits
     const internationalPhoneRegex = /^\+?[1-9]\d{1,14}$/;
 
-    // 1. Primary Phone Validation
     const cleanPhone = data.phone.replace(/[\s\-]/g, "");
     if (data.pt === "local") {
       if (!ethiopianPhoneRegex.test(cleanPhone)) {
@@ -165,7 +165,6 @@ const patientFormSchema = z
       }
     }
 
-    // 2. Emergency Phone Validation (Optional, validations apply if field contains content)
     if (data.ecPhone && data.ecPhone.trim() !== "") {
       const cleanEcPhone = data.ecPhone.replace(/[\s\-]/g, "");
       if (data.pt === "local") {
@@ -238,8 +237,10 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     }
   };
 
-  const onSubmit = (data: PatientFormValues) => {
-    const finalSubmission = {
+  // Inside your PatientForm component, update the onSubmit function:
+
+  const onSubmit = async (data: PatientFormValues) => {
+    const processedFormData = {
       ...data,
       nationality:
         data.nationality === "Other"
@@ -248,16 +249,44 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
       country: data.country === "Other" ? data.customCountry : data.country,
     };
 
-    console.log("Submitting fully validated configuration:", finalSubmission);
-    alert(
-      id
-        ? "Patient record updated successfully!"
-        : "Patient registered successfully!"
+    // 1. Check if the phone number already exists in the database
+    const { data: existingPhone, error: phoneCheckError } = await supabase
+      .from("patients")
+      .select("id")
+      .eq("phone", data.phone)
+      .maybeSingle();
+
+    if (phoneCheckError) {
+      alert(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
+      return;
+    }
+
+    if (existingPhone) {
+      alert("⚠️ This phone number is already registered to another patient.");
+      return;
+    }
+
+    const followupsArray = [data.fu1, data.fu2, data.fu3, data.fu4];
+
+    // 2. Proceed with saving if unique
+    const { error } = await savePatientRecord(
+      id || null,
+      processedFormData,
+      followupsArray
     );
-    router.push("/dashboard");
+
+    if (error) {
+      alert(`⚠️ Save Error: ${error.message}`);
+    } else {
+      alert(
+        id
+          ? "✅ Patient record updated successfully!"
+          : "✅ Patient registered successfully!"
+      );
+      router.push("/dashboard");
+    }
   };
 
-  // Shared conditional configuration for inputs
   const phonePlaceholder =
     selectedPatientType === "local"
       ? "09xxxxxxxx or +2519xxxxxxxx"
@@ -340,7 +369,6 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
             </select>
           </div>
 
-          {/* Dynamic Nationality Select */}
           <div className="fg">
             <label>Nationality</label>
             <Select
@@ -393,20 +421,9 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
             <label>Alternate Phone</label>
             <input
               type="tel"
-              {...register("ecPhone")}
+              {...register("phone2")}
               placeholder={phonePlaceholder}
             />
-            {errors.ecPhone && (
-              <span
-                style={{
-                  color: "var(--red)",
-                  fontSize: "10px",
-                  marginTop: "2px",
-                }}
-              >
-                {errors.ecPhone.message}
-              </span>
-            )}
           </div>
 
           <div className="fg">
@@ -486,7 +503,6 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
             <input {...register("passport")} placeholder="Passport number" />
           </div>
 
-          {/* Dynamic Country Select */}
           <div className="fg">
             <label>Country of Origin</label>
             <Select

@@ -1,8 +1,9 @@
 "use client";
 
-import { patients } from "@/lib/mock-data";
-import { initials, fmtDate, calcAge } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { initials, fmtDate, calcAge } from "@/lib/utils";
 
 // Helper function to figure out follow-up chronological status labels
 function getFuStatus(dateStr: string) {
@@ -19,14 +20,96 @@ function getFuStatus(dateStr: string) {
 
 export default function PatientDetails({ id }: { id: string }) {
   const router = useRouter();
+  const [patient, setPatient] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const patient = patients.find((p) => p.id === id);
+  // Fetch data directly from Supabase on mount
+  useEffect(() => {
+    async function fetchPatientData() {
+      try {
+        const { data, error } = await supabase
+          .from("patients")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error pulling patient record:", error.message);
+        } else if (data) {
+          // Map DB snake_case structure to matching camelCase view attributes
+          setPatient({
+            ...data,
+            bloodType: data.blood_type,
+            ecName: data.ec_name,
+            ecPhone: data.ec_phone,
+            arrivalDate: data.arrival_date,
+            departureDate: data.departure_date,
+            treatPlan: data.treat_plan,
+            refSrc: data.ref_src,
+            familyHx: data.family_hx,
+            obsHx: data.obs_hx,
+            labRem: data.lab_rem,
+            labDate: data.lab_date,
+            labPend: data.lab_pend,
+            payStatus: data.pay_status,
+            totalAmt: data.total_amt,
+            paidAmt: data.paid_amt,
+            payMethod: data.pay_method,
+            payRem: data.pay_rem,
+            regDate: data.reg_date,
+          });
+        }
+      } catch (err) {
+        console.error("Unexpected fetch failure:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPatientData();
+  }, [id]);
+
+  // Handle live removal pipeline sequence
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        "⚠️ Are you sure you want to permanently delete this patient record?"
+      )
+    )
+      return;
+
+    try {
+      const { error } = await supabase.from("patients").delete().eq("id", id);
+
+      if (error) {
+        alert(`Failed to delete record: ${error.message}`);
+      } else {
+        alert("🗑 Record successfully deleted from the database.");
+        router.push("/patients");
+      }
+    } catch (err) {
+      console.error("Deletion error:", err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-title">🔬 Retrieving Patient Registry...</div>
+        <div className="no-results">
+          Please wait while the system queries the secure ledger database.
+        </div>
+      </div>
+    );
+  }
 
   if (!patient) {
     return (
       <div className="card">
         <div className="card-title">Patient Not Found</div>
-        <div className="no-results">No patient record exists.</div>
+        <div className="no-results">
+          No patient record exists for this identifier.
+        </div>
       </div>
     );
   }
@@ -39,7 +122,7 @@ export default function PatientDetails({ id }: { id: string }) {
     </div>
   );
 
-  // Financial parsing variables
+  // Financial calculations
   const totalN = Number(patient.totalAmt) || 0;
   const paidN = Number(patient.paidAmt) || 0;
   const balN = totalN - paidN;
@@ -58,7 +141,7 @@ export default function PatientDetails({ id }: { id: string }) {
   return (
     <div>
       <button className="back-btn" onClick={() => router.back()}>
-        ← Back to All Patients
+        ← Back
       </button>
 
       {/* Header Container */}
@@ -456,13 +539,12 @@ export default function PatientDetails({ id }: { id: string }) {
           >
             {patient.payStatus || "Pending"}
           </span>
-          {patient.totalAmt && (
+          {totalN > 0 && (
             <span style={{ fontSize: "13px", fontWeight: "700" }}>
-              {patient.currency || "ETB"}{" "}
-              {Number(patient.totalAmt).toLocaleString()} total
+              {patient.currency || "ETB"} {totalN.toLocaleString()} total
             </span>
           )}
-          {patient.paidAmt && (
+          {paidN > 0 && (
             <span
               style={{
                 fontSize: "13px",
@@ -470,8 +552,7 @@ export default function PatientDetails({ id }: { id: string }) {
                 fontWeight: "600",
               }}
             >
-              Paid: {patient.currency || "ETB"}{" "}
-              {Number(patient.paidAmt).toLocaleString()}
+              Paid: {patient.currency || "ETB"} {paidN.toLocaleString()}
             </span>
           )}
           {balN > 0 && (
@@ -487,7 +568,7 @@ export default function PatientDetails({ id }: { id: string }) {
           )}
         </div>
 
-        {patient.totalAmt && patient.paidAmt && (
+        {totalN > 0 && (
           <>
             <div className="pay-bar">
               <div className="pay-paid" style={{ width: `${paidPct}%` }}></div>
@@ -550,12 +631,7 @@ export default function PatientDetails({ id }: { id: string }) {
         <button
           className="btn btn-danger"
           style={{ marginLeft: "auto" }}
-          onClick={() => {
-            if (confirm("Are you sure you want to delete this record?")) {
-              // Add deletion dispatch implementation logic if needed
-              router.push("/patients");
-            }
-          }}
+          onClick={handleDelete}
         >
           🗑 Delete
         </button>

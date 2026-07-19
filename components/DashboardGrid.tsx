@@ -1,22 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { patients } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { initials, fmtDate } from "@/lib/utils";
 
 // Dynamic Alert Parser matching your original follow-up statuses
-function getDashboardAlerts() {
+function getDashboardAlerts(patientsList: any[]) {
   const alerts: any[] = [];
   const todayStr = new Date().toISOString().split("T")[0];
   const todayTime = new Date(todayStr).getTime();
   const oneWeekLaterTime = todayTime + 7 * 24 * 60 * 60 * 1000;
 
-  patients.forEach((p) => {
+  patientsList.forEach((p) => {
     [1, 2, 3, 4].forEach((i) => {
-      const fu = p[`fu${i}` as keyof typeof p] as
-        | { date?: string; note?: string }
-        | undefined;
+      const fu = p[`fu${i}`] as { date?: string; note?: string } | undefined;
       if (fu && fu.date) {
         const fuTime = new Date(fu.date).getTime();
         let status = "";
@@ -42,9 +40,37 @@ function getDashboardAlerts() {
 export default function DashboardGrid() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [patients, setPatients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Pull operational dataset state from Supabase on mount
+  useEffect(() => {
+    async function fetchDashboardData() {
+      try {
+        const { data, error } = await supabase.from("patients").select("*");
+        if (error) {
+          console.error("Error fetching dashboard patients:", error.message);
+        } else if (data) {
+          // Standard camelCase normalization interface conversion pipeline
+          const mapped = data.map((p) => ({
+            ...p,
+            regDate: p.reg_date,
+            payStatus: p.pay_status,
+            refSrc: p.ref_src,
+          }));
+          setPatients(mapped);
+        }
+      } catch (err) {
+        console.error("Dashboard engine critical fetch boundary failure:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboardData();
+  }, []);
 
   const all = patients;
-  const alerts = getDashboardAlerts();
+  const alerts = getDashboardAlerts(patients);
   const local = patients.filter((p) => p.pt === "local");
   const intl = patients.filter((p) => p.pt === "international");
 
@@ -57,7 +83,7 @@ export default function DashboardGrid() {
   }, {});
   const topT = Object.entries(treatmentCounts).sort((a, b) => b[1] - a[1]);
 
-  // Top Nationalities (Placeholder array matching topN layout)
+  // Top Nationalities
   const nationalityCounts = patients.reduce(
     (acc: Record<string, number>, p) => {
       if (p.nationality && p.pt === "international") {
@@ -132,6 +158,38 @@ export default function DashboardGrid() {
     );
   };
 
+  // Professional Dashboard Card Skeleton Fallbacks
+  if (loading) {
+    return (
+      <>
+        <div className="two-col" style={{ animation: "pulse 1.5s infinite" }}>
+          <div className="card" style={{ height: "180px", opacity: 0.6 }} />
+          <div className="card" style={{ height: "180px", opacity: 0.6 }} />
+        </div>
+        <div
+          className="two-col"
+          style={{ animation: "pulse 1.5s infinite", marginTop: "20px" }}
+        >
+          <div className="card" style={{ height: "180px", opacity: 0.6 }} />
+          <div className="card" style={{ height: "180px", opacity: 0.6 }} />
+        </div>
+        <style jsx global>{`
+          @keyframes pulse {
+            0% {
+              opacity: 0.5;
+            }
+            50% {
+              opacity: 0.85;
+            }
+            100% {
+              opacity: 0.5;
+            }
+          }
+        `}</style>
+      </>
+    );
+  }
+
   return (
     <>
       {/* SECTION 1: QUICK LOOKUP & FOLLOW-UP ALERTS */}
@@ -162,8 +220,8 @@ export default function DashboardGrid() {
                       key={p.id}
                       onClick={() => router.push(`/patients/${p.id}`)}
                       className="patient-row"
+                      style={{ cursor: "pointer" }}
                     >
-                      {/* Avatar using original class structure */}
                       <div
                         className={`avatar ${
                           p.pt === "international" ? "av-intl" : "av-local"
@@ -172,7 +230,6 @@ export default function DashboardGrid() {
                         {initials(p.name)}
                       </div>
 
-                      {/* Patient info wrappers using original text layouts */}
                       <div className="patient-info">
                         <div className="p-name">
                           {p.name}
@@ -191,7 +248,6 @@ export default function DashboardGrid() {
                             </span>
                           )}
 
-                          {/* Payment Status Badge linked entirely to your original CSS classes */}
                           {p.payStatus && (
                             <span
                               className={`badge ${
@@ -213,7 +269,6 @@ export default function DashboardGrid() {
                         </div>
                       </div>
 
-                      {/* Date registered aligned cleanly to the right */}
                       <div
                         style={{
                           fontSize: "10px",
@@ -246,7 +301,11 @@ export default function DashboardGrid() {
         <div className="card">
           <div className="card-title">
             🔔 Follow-up Alerts{" "}
-            <span className="ctr" onClick={() => router.push("/followups")}>
+            <span
+              className="ctr"
+              onClick={() => router.push("/followups")}
+              style={{ cursor: "pointer" }}
+            >
               View all →
             </span>
           </div>
@@ -262,7 +321,6 @@ export default function DashboardGrid() {
               ✅ No pending alerts
             </div>
           ) : (
-            /* Styled scrollable boundary showing 2 items max */
             <div
               style={{
                 maxHeight: "155px",
@@ -283,6 +341,7 @@ export default function DashboardGrid() {
                       : ""
                   }`}
                   onClick={() => router.push(`/patients/${a.p.id}`)}
+                  style={{ cursor: "pointer" }}
                 >
                   <span>
                     {a.s === "over" ? "🔴" : a.s === "today" ? "🟢" : "🟡"}

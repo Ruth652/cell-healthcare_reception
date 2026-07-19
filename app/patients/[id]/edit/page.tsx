@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { patients } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
+import { savePatientRecord } from "@/lib/db-actions";
 
 const TREATMENTS = [
   "IVF / Assisted Reproduction",
@@ -53,10 +54,9 @@ export default function EditPatientForm() {
   const params = useParams();
   const id = params?.id as string;
 
-  // Locate current record
-  const existingPatient = patients.find((p) => p.id === id);
+  const [loading, setLoading] = useState(true);
+  const [exists, setExists] = useState(true);
 
-  // Form States linked to original schema keys
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -108,76 +108,89 @@ export default function EditPatientForm() {
     { date: "", note: "" },
   ]);
 
+  // Fetch the patient record from your Supabase table on load
   useEffect(() => {
-    if (existingPatient) {
+    async function fetchPatient() {
+      if (!id) return;
+
+      const { data: p, error } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error || !p) {
+        setExists(false);
+        setLoading(false);
+        return;
+      }
+
       setFormData({
-        name: existingPatient.name || "",
-        phone: existingPatient.phone || "",
-        pt: existingPatient.pt || "local",
-        gender: existingPatient.gender || "Female",
-        dob: existingPatient.dob || "",
-        bloodType: existingPatient.bloodType || "Unknown",
-        nationality: existingPatient.nationality || "",
-        phone2: existingPatient.phone2 || "",
-        email: existingPatient.email || "",
-        language: existingPatient.language || "",
-        address: existingPatient.address || "",
-        ecName: existingPatient.ecName || "",
-        ecPhone: existingPatient.ecPhone || "",
-        passport: existingPatient.passport || "",
-        country: existingPatient.country || "",
-        visa: existingPatient.visa || "",
-        arrivalDate: existingPatient.arrivalDate || "",
-        departureDate: existingPatient.departureDate || "",
-        hotel: existingPatient.hotel || "",
-        referrer: existingPatient.referrer || "",
-        interpreter: existingPatient.interpreter || "No",
-        treat: existingPatient.treat || "",
-        treatPlan: existingPatient.treatPlan || "",
-        refSrc: existingPatient.refSrc || "Self-referred",
-        conditions: existingPatient.conditions || "",
-        surgeries: existingPatient.surgeries || "",
-        medications: existingPatient.medications || "",
-        allergies: existingPatient.allergies || "",
-        familyHx: existingPatient.familyHx || "",
-        obsHx: existingPatient.obsHx || "",
-        labRem: existingPatient.labRem || "",
-        labDate: existingPatient.labDate || "",
-        labPend: existingPatient.labPend || "",
-        payStatus: existingPatient.payStatus || "Pending",
-        currency: existingPatient.currency || "ETB",
-        totalAmt: existingPatient.totalAmt || "",
-        paidAmt: existingPatient.paidAmt || "",
-        payMethod: existingPatient.payMethod || "",
-        insurance: existingPatient.insurance || "",
-        payRem: existingPatient.payRem || "",
-        regDate: existingPatient.regDate
-          ? existingPatient.regDate.split("T")[0]
-          : "",
+        name: p.name || "",
+        phone: p.phone || "",
+        pt: p.pt || "local",
+        gender: p.gender || "Female",
+        dob: p.dob || "",
+        bloodType: p.blood_type || "Unknown",
+        nationality: p.nationality || "",
+        phone2: p.phone2 || "",
+        email: p.email || "",
+        language: p.language || "",
+        address: p.address || "",
+        ecName: p.ec_name || "",
+        ecPhone: p.ec_phone || "",
+        passport: p.passport || "",
+        country: p.country || "",
+        visa: p.visa || "",
+        arrivalDate: p.arrival_date || "",
+        departureDate: p.departure_date || "",
+        hotel: p.hotel || "",
+        referrer: p.referrer || "",
+        interpreter: p.interpreter || "No",
+        treat: p.treat || "",
+        treatPlan: p.treat_plan || "",
+        refSrc: p.ref_src || "Self-referred",
+        conditions: p.conditions || "",
+        surgeries: p.surgeries || "",
+        medications: p.medications || "",
+        allergies: p.allergies || "",
+        familyHx: p.family_hx || "",
+        obsHx: p.obs_hx || "",
+        labRem: p.lab_rem || "",
+        labDate: p.lab_date || "",
+        labPend: p.lab_pend || "",
+        payStatus: p.pay_status || "Pending",
+        currency: p.currency || "ETB",
+        totalAmt: p.total_amt?.toString() || "",
+        paidAmt: p.paid_amt?.toString() || "",
+        payMethod: p.pay_method || "",
+        insurance: p.insurance || "",
+        payRem: p.pay_rem || "",
+        regDate: p.reg_date ? p.reg_date.split("T")[0] : "",
       });
 
       setFollowups([
-        {
-          date: existingPatient.fu1?.date || "",
-          note: existingPatient.fu1?.note || "",
-        },
-        {
-          date: existingPatient.fu2?.date || "",
-          note: existingPatient.fu2?.note || "",
-        },
-        {
-          date: existingPatient.fu3?.date || "",
-          note: existingPatient.fu3?.note || "",
-        },
-        {
-          date: existingPatient.fu4?.date || "",
-          note: existingPatient.fu4?.note || "",
-        },
+        { date: p.fu1?.date || "", note: p.fu1?.note || "" },
+        { date: p.fu2?.date || "", note: p.fu2?.note || "" },
+        { date: p.fu3?.date || "", note: p.fu3?.note || "" },
+        { date: p.fu4?.date || "", note: p.fu4?.note || "" },
       ]);
-    }
-  }, [existingPatient]);
 
-  if (!existingPatient) {
+      setLoading(false);
+    }
+
+    fetchPatient();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="card-title">Loading Patient Profile...</div>
+      </div>
+    );
+  }
+
+  if (!exists) {
     return (
       <div className="card">
         <div className="card-title">Patient Not Found</div>
@@ -209,27 +222,42 @@ export default function EditPatientForm() {
     });
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  // Inside your EditPatientForm component, update the handleSave function:
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.phone.trim()) {
+    if (!formData.phone.trim()) {
       alert("⚠️ Patient name and phone number are required.");
       return;
     }
 
-    const updatedRecord = {
-      ...existingPatient,
-      ...formData,
-      fu1: followups[0],
-      fu2: followups[1],
-      fu3: followups[2],
-      fu4: followups[3],
-      updatedDate: new Date().toISOString(),
-    };
+    // 1. Cross-check if the phone number is taken by a DIFFERENT patient record
+    const { data: existingPhone, error: phoneCheckError } = await supabase
+      .from("patients")
+      .select("id")
+      .eq("phone", formData.phone.trim())
+      .neq("id", id) // Exclude the current patient record from the check
+      .maybeSingle();
 
-    console.log("Saving dynamic record pipeline update:", updatedRecord);
-    // Persist changes to your database or context cache wrapper here.
-    alert("✅ Record updated!");
-    router.push(`/patients/${id}`);
+    if (phoneCheckError) {
+      alert(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
+      return;
+    }
+
+    if (existingPhone) {
+      alert("⚠️ This phone number is already in use by another patient.");
+      return;
+    }
+
+    // 2. Proceed with updating if unique or unchanged
+    const { error } = await savePatientRecord(id, formData, followups);
+
+    if (error) {
+      alert(`⚠️ Update Error: ${error.message}`);
+    } else {
+      alert("✅ Record updated successfully!");
+      router.push(`/patients/${id}`);
+    }
   };
 
   return (
@@ -293,8 +321,7 @@ export default function EditPatientForm() {
               >
                 {GENDERS.map((g) => (
                   <option key={g} value={g}>
-                    {" "}
-                    {g}{" "}
+                    {g}
                   </option>
                 ))}
               </select>
@@ -317,8 +344,7 @@ export default function EditPatientForm() {
               >
                 {BLOOD.map((b) => (
                   <option key={b} value={b}>
-                    {" "}
-                    {b}{" "}
+                    {b}
                   </option>
                 ))}
               </select>
@@ -494,8 +520,7 @@ export default function EditPatientForm() {
                 <option value="">Select treatment...</option>
                 {TREATMENTS.map((t) => (
                   <option key={t} value={t}>
-                    {" "}
-                    {t}{" "}
+                    {t}
                   </option>
                 ))}
               </select>
@@ -517,8 +542,7 @@ export default function EditPatientForm() {
               >
                 {REFERRAL.map((r) => (
                   <option key={r} value={r}>
-                    {" "}
-                    {r}{" "}
+                    {r}
                   </option>
                 ))}
               </select>
@@ -672,8 +696,7 @@ export default function EditPatientForm() {
               >
                 {PAY_STATUS.map((s) => (
                   <option key={s} value={s}>
-                    {" "}
-                    {s}{" "}
+                    {s}
                   </option>
                 ))}
               </select>
@@ -687,8 +710,7 @@ export default function EditPatientForm() {
               >
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
-                    {" "}
-                    {c}{" "}
+                    {c}
                   </option>
                 ))}
               </select>
