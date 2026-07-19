@@ -1,4 +1,4 @@
-// lib/db-actions.ts
+
 import { supabase } from "./supabase";
 
 export const savePatientRecord = async (id: string | null, formData: any, followups: any[]) => {

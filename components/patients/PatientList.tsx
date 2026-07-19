@@ -10,19 +10,18 @@ export default function PatientList() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
 
-  // Fetch all patients from your Supabase database table on load
+  // Fetch all patients from your Supabase database
   useEffect(() => {
     async function fetchPatients() {
       try {
         const { data, error } = await supabase
           .from("patients")
           .select("*")
-          .order("reg_date", { ascending: false }); // Optional: shows newest first
+          .order("reg_date", { ascending: false }); // shows newest first
 
         if (error) {
           console.error("Error fetching patients:", error.message);
         } else if (data) {
-          // Map database snake_case fields to camelCase if your PatientCard relies on camelCase properties
           const formattedData = data.map((p) => ({
             ...p,
             bloodType: p.blood_type,

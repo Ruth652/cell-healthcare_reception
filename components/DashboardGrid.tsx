@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { initials, fmtDate } from "@/lib/utils";
 
-// Dynamic Alert Parser matching your original follow-up statuses
 function getDashboardAlerts(patientsList: any[]) {
   const alerts: any[] = [];
   const todayStr = new Date().toISOString().split("T")[0];
