@@ -106,7 +106,7 @@ textarea{resize:vertical;min-height:58px}
 .irow{display:flex;flex-direction:column;gap:2px;padding:8px 9px;background:var(--gray);border-radius:7px}
 .ilabel{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:0.4px}
 .ival{font-size:11px;color:var(--text);font-weight:600}
-.det-hdr{background:var(--brand);border-radius:12px;padding:18px;color:#fff;margin-bottom:10px;display:flex;gap:14px;align-items:center}
+.det-hdr{display:flex;gap:14px;align-items:center;background:var(--brand);border-radius:12px;padding:18px;color:#fff;margin-bottom:10px}
 .det-av{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;flex-shrink:0}
 .back-btn{display:flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:var(--brand);font-size:12px;font-weight:700;padding:4px 0;margin-bottom:8px}
 .action-bar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
@@ -140,7 +140,6 @@ textarea{resize:vertical;min-height:58px}
   font-size: 12px;
   font-family: inherit;
 }
-
 .react-select__control {
   min-height: 34px !important;
   height: 34px;
@@ -151,83 +150,240 @@ textarea{resize:vertical;min-height:58px}
   font-size: 12px;
   cursor: pointer;
 }
-
 .react-select__control:hover {
   border-color: var(--brand) !important;
 }
-
 .react-select__control--is-focused {
   border-color: var(--brand) !important;
   box-shadow: none !important;
 }
-
-
 .react-select__value-container {
   padding: 0 10px !important;
 }
-
-
 .react-select__single-value {
   color: var(--text) !important;
   font-size: 12px;
 }
-
-
 .react-select__placeholder {
   color: var(--text3) !important;
   font-size: 12px;
 }
-
-
 .react-select__input-container {
   color: var(--text) !important;
   font-size: 12px;
 }
-
-
 .react-select__menu {
   border-radius: 7px;
   border: 1px solid var(--border);
   overflow: hidden;
   font-size: 12px;
 }
-
-
 .react-select__option {
   padding: 8px 10px;
   font-size: 12px;
   color: var(--text);
   cursor: pointer;
 }
-
-
 .react-select__option--is-focused {
   background: var(--brand-light) !important;
   color: var(--brand-dark) !important;
 }
-
-
 .react-select__option--is-selected {
   background: var(--brand) !important;
   color: white !important;
 }
-
-
 .react-select__dropdown-indicator {
   color: var(--text3);
 }
-
-
 .react-select__clear-indicator {
   color: var(--text3);
 }
-
 .skeleton-text {
   opacity: 0.4;
   animation: pulse 1.5s infinite ease-in-out;
 }
-
 @keyframes pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 0.6; }
+}
+
+/* ==========================================
+   MOBILE & SCREEN RESPONSIVENESS OVERRIDES
+   ========================================== */
+
+@media (max-width: 768px) {
+  /* Layout Wrapper Tuning */
+  .app {
+    padding: 0 10px 30px;
+  }
+  
+  .main {
+    padding: 8px 0;
+  }
+  
+  /* Dash Hero Redirection */
+  .dash-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 16px;
+  }
+  .dash-hero::before {
+    display: none; /* Hide background artifact to save space */
+  }
+  
+  /* Four Columns Grid System to Two Columns on Mobile */
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 10px;
+  }
+  .stat-num {
+    font-size: 20px;
+  }
+  
+  /* Split layout panels stack down */
+  .two-col {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Form & Subgrid Content Adjustments */
+  .form-grid, .fu-grid, .info-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  /* Custom action items alignment */
+  .quick-actions {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .qa-btn {
+    padding: 10px 5px;
+  }
+  .qa-icon {
+    font-size: 18px;
+  }
+  .qa-label {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Header Structural Tuning */
+  .header-main {
+    padding: 10px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .header-right {
+    text-align: left;
+    width: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 6px;
+  }
+  .header-stripe {
+    padding: 6px 14px;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  /* Navigation Bar Overflows */
+  .nav {
+    margin: 8px 0 0;
+    flex-wrap: wrap;
+  }
+  .nav-btn {
+    flex: calc(50% - 1px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 4px;
+  }
+  .nav-btn:nth-child(2) {
+    border-right: none;
+  }
+  .nav-btn:nth-child(3), .nav-btn:nth-child(4) {
+    border-bottom: none;
+  }
+
+  /* Patient List Rows wrapping protection */
+  .patient-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .patient-row > div:last-child {
+    text-align: left !important;
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 6px;
+    margin-top: 2px;
+  }
+  .p-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+  .badge {
+    margin-left: 0;
+    margin-right: 4px;
+  }
+
+  /* Patient Type Selectors Stack */
+  .type-sel {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .type-btn {
+    width: 100%;
+  }
+
+  /* Profile Details Header Adjustments */
+  .det-hdr {
+    flex-direction: column;
+    text-align: center;
+    padding: 16px;
+  }
+  
+  /* Action buttons expansion */
+  .action-bar {
+    width: 100%;
+  }
+  .action-bar .btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+  }
+  
+  /* Data charts formatting updates */
+  .pie-wrap {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .pie-legend {
+    width: 100%;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Dynamic modifications for very small phone panels */
+  .stats-row {
+    grid-template-columns: 1fr;
+  }
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+  .nav-btn {
+    flex: 100%;
+    border-right: none !important;
+  }
+  .nav-btn:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+  }
 }
