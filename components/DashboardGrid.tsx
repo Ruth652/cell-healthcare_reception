@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { initials, fmtDate } from "@/lib/utils";
+import { initials, fmtDate, phoneSearchMatch } from "@/lib/utils";
+import { Patient, FollowupAlert } from "@/lib/types";
 
 function getDashboardAlerts(patientsList: any[]) {
-  const alerts: any[] = [];
+  const alerts: FollowupAlert[] = [];
   const todayStr = new Date().toISOString().split("T")[0];
   const todayTime = new Date(todayStr).getTime();
   const oneWeekLaterTime = todayTime + 7 * 24 * 60 * 60 * 1000;
@@ -101,7 +102,8 @@ export default function DashboardGrid() {
     ? patients.filter(
         (p) =>
           p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.phone.replace(/[\s\-]/g, "").includes(search.replace(/[\s\-]/g, ""))
+          phoneSearchMatch(p.phone, search) ||
+          (p.phone2 && phoneSearchMatch(p.phone2, search))
       )
     : [];
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { initials, fmtDate } from "@/lib/utils";
+import { initials, fmtDate, phoneSearchMatch } from "@/lib/utils";
 
 export default function SearchPage() {
   const router = useRouter();
@@ -35,13 +35,13 @@ export default function SearchPage() {
     }
     fetchPatientsCache();
   }, []);
-
   // Compute live search results on every single keystroke directly from memory
   const results = query.trim()
     ? patients.filter(
         (p) =>
           p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.phone.replace(/[\s\-]/g, "").includes(query.replace(/[\s\-]/g, ""))
+          phoneSearchMatch(p.phone, query) ||
+          (p.phone2 && phoneSearchMatch(p.phone2, query))
       )
     : [];
 

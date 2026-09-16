@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import PatientCard from "./PatientCard";
+import { phoneSearchMatch } from "@/lib/utils";
 
 export default function PatientList() {
   const [patients, setPatients] = useState<any[]>([]);
@@ -59,7 +60,8 @@ export default function PatientList() {
     const matchesSearch =
       !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.phone.includes(search) ||
+      phoneSearchMatch(p.phone, search) ||
+      (p.phone2 && phoneSearchMatch(p.phone2, search)) ||
       (p.nationality || "").toLowerCase().includes(search.toLowerCase());
 
     const matchesType = !type || p.pt === type;

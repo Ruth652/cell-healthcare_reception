@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { fmtDate } from "@/lib/utils";
+import { Patient, FollowupAlert } from "@/lib/types";
 
 function getAllAlerts(patientsList: any[]) {
-  const alerts: any[] = [];
+  const alerts: FollowupAlert[] = [];
   const todayStr = new Date().toISOString().split("T")[0];
   const todayTime = new Date(todayStr).getTime();
   const oneWeekLaterTime = todayTime + 7 * 24 * 60 * 60 * 1000;

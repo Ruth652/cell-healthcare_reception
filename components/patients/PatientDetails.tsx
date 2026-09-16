@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { initials, fmtDate, calcAge } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 // Helper function to figure out follow-up chronological status labels
 function getFuStatus(dateStr: string) {
@@ -82,9 +83,9 @@ export default function PatientDetails({ id }: { id: string }) {
       const { error } = await supabase.from("patients").delete().eq("id", id);
 
       if (error) {
-        alert(`Failed to delete record: ${error.message}`);
+        toast.error(`Failed to delete record: ${error.message}`);
       } else {
-        alert("🗑 Record successfully deleted from the database.");
+        toast.success("🗑 Record successfully deleted from the database.");
         router.push("/patients");
       }
     } catch (err) {

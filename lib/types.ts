@@ -50,3 +50,11 @@ export interface Patient {
   // Notes
   remarks?: string;
 }
+
+export interface FollowupAlert {
+  p: Patient;
+  i: number;
+  date: string;
+  note: string;
+  s: string;
+}

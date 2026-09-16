@@ -9,6 +9,7 @@ import { countries } from "@/app/data/countries";
 import { savePatientRecord } from "@/lib/db-actions";
 import { supabase } from "@/lib/supabase";
 import { normalizePhone } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 const TREATMENTS = [
   "IVF / Assisted Reproduction",
@@ -142,50 +143,37 @@ const patientFormSchema = z
     payRem: z.string().default(""),
   })
   .superRefine((data, ctx) => {
-    const ethiopianPhoneRegex = /^(09\d{8}|\+2519\d{8})$/;
-    const internationalPhoneRegex = /^\+?[1-9]\d{1,14}$/;
+    const ethiopianPhoneRegex = /^(0[79]\d{8}|\+251[79]\d{8})$/;
+    const errorMessage = "Enter a valid Ethiopian phone number (09/07xxxxxxxx or +2519/+2517xxxxxxxx)";
 
     const cleanPhone = data.phone.replace(/[\s\-]/g, "");
-    if (data.pt === "local") {
-      if (!ethiopianPhoneRegex.test(cleanPhone)) {
+    if (!ethiopianPhoneRegex.test(cleanPhone)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["phone"],
+        message: errorMessage,
+      });
+    }
+
+    if (data.phone2 && data.phone2.trim() !== "") {
+      const cleanPhone2 = data.phone2.replace(/[\s\-]/g, "");
+      if (!ethiopianPhoneRegex.test(cleanPhone2)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["phone"],
-          message:
-            "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)",
-        });
-      }
-    } else {
-      if (!internationalPhoneRegex.test(cleanPhone)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["phone"],
-          message:
-            "Enter a valid international phone number (e.g., +14155552671)",
+          path: ["phone2"],
+          message: errorMessage,
         });
       }
     }
 
     if (data.ecPhone && data.ecPhone.trim() !== "") {
       const cleanEcPhone = data.ecPhone.replace(/[\s\-]/g, "");
-      if (data.pt === "local") {
-        if (!ethiopianPhoneRegex.test(cleanEcPhone)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["ecPhone"],
-            message:
-              "Enter a valid Ethiopian phone number (09xxxxxxxx or +2519xxxxxxxx)",
-          });
-        }
-      } else {
-        if (!internationalPhoneRegex.test(cleanEcPhone)) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["ecPhone"],
-            message:
-              "Enter a valid international phone number (e.g., +14155552671)",
-          });
-        }
+      if (!ethiopianPhoneRegex.test(cleanEcPhone)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["ecPhone"],
+          message: errorMessage,
+        });
       }
     }
   });
@@ -259,7 +247,7 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     const { data: records, error: phoneCheckError } = await query;
 
     if (phoneCheckError) {
-      alert(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
+      toast.error(`⚠️ Error checking phone uniqueness: ${phoneCheckError.message}`);
       return;
     }
 
@@ -270,7 +258,7 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     });
 
     if (isDuplicate) {
-      alert(
+      toast.error(
         "⚠️ This phone number is already registered to another patient profile under an alternate format variant."
       );
       return;
@@ -286,9 +274,9 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     );
 
     if (error) {
-      alert(`⚠️ Save Error: ${error.message}`);
+      toast.error(`⚠️ Save Error: ${error.message}`);
     } else {
-      alert(
+      toast.success(
         id
           ? "✅ Patient record updated successfully!"
           : "✅ Patient registered successfully!"
@@ -297,10 +285,7 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
     }
   };
 
-  const phonePlaceholder =
-    selectedPatientType === "local"
-      ? "09xxxxxxxx or +2519xxxxxxxx"
-      : "+14155552671";
+  const phonePlaceholder = "09/07xxxxxxxx or +2519/+2517xxxxxxxx";
 
   return (
     <form className="card" onSubmit={handleSubmit(onSubmit)}>
@@ -434,6 +419,17 @@ export default function PatientForm({ initialData, id }: PatientFormProps) {
               {...register("phone2")}
               placeholder={phonePlaceholder}
             />
+            {errors.phone2 && (
+              <span
+                style={{
+                  color: "var(--red)",
+                  fontSize: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                {errors.phone2.message}
+              </span>
+            )}
           </div>
 
           <div className="fg">

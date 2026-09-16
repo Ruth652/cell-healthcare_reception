@@ -84,3 +84,19 @@ export function normalizePhone(phoneStr: string): string {
   // Grabbing the final 9 digits guarantees a matched core identifier regardless of prepended country codes.
   return cleaned.length >= 9 ? cleaned.slice(-9) : cleaned;
 }
+
+export function phoneSearchMatch(dbPhone: string, searchStr: string): boolean {
+  if (!dbPhone || !searchStr) return false;
+  
+  const cleanSearch = searchStr.replace(/[\s\-]/g, "");
+  if (!cleanSearch) return false;
+  
+  if (dbPhone.replace(/[\s\-]/g, "").includes(cleanSearch)) return true;
+  
+  const normalizedSearch = normalizePhone(cleanSearch);
+  const normalizedDb = normalizePhone(dbPhone);
+  
+  if (normalizedSearch.length > 0 && normalizedDb.includes(normalizedSearch)) return true;
+  
+  return false;
+}
